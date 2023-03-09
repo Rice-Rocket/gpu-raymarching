@@ -4,18 +4,37 @@ use glium::glutin;
 use glium::Surface;
 
 
-#[path = "program.rs"] mod program;
 use program::*;
+use scene::*;
+#[path = "program.rs"] mod program;
+#[path = "scene.rs"] mod scene;
+
+
+fn basic_scene() -> Scene {
+    let mut scene = Scene::new();
+    scene.set_camera(Camera::new(
+        Point3::new(0., 2., 0.),
+        Vec3::new(-0.15, 1.8, 1.0),
+    ));
+
+    let cuboid = Primitive::Cuboid(Point3::new(0.0, 1., 6.), Vec3::new(0.5, 0.75, 0.5));
+    let sphere = Primitive::Sphere(Point3::new(-1.25, 1., 6.), 0.8);
+    scene.add(Primitive::AAPlane(Axis::Y, 0.));
+    scene.add_csg(Csg::new(CsgOp::SmoothMax(5.0), [Some(cuboid), Some(sphere)]));
+    scene.add_light(Point3::new(6., 5., -6.));
+    return scene
+}
 
 
 
 fn main() {
-    let mut event_loop = glutin::event_loop::EventLoop::new();
+    let event_loop = glutin::event_loop::EventLoop::new();
     let wb = glutin::window::WindowBuilder::new();
     let cb = glutin::ContextBuilder::new();
     let display = glium::Display::new(wb, cb, &event_loop).unwrap();
     let (vertex_buffer, indices, program) = load_program(&display);
 
+    let scene = basic_scene();
     let mut time = 0f32;
     let mut held_keys = [false; 255];
     let mut mouse = [0f32; 4];
@@ -78,10 +97,18 @@ fn main() {
 
         let mut target = display.draw();
         target.clear_color(0.0, 0.0, 0.0, 0.0);
+        let uniform_buffer = glium::uniforms::UniformBuffer::new(&display, UniformBlock {
+            objects: scene.get_objects(), 
+            lights: scene.get_lights(), 
+            csgs: scene.get_csgs()
+        }).unwrap();
         target.draw(&vertex_buffer, &indices, &program, &uniform! {
             time: time, 
-            resolution: (display.get_framebuffer_dimensions().0 as f32, display.get_framebuffer_dimensions().1 as f32),
-            mouse: mouse
+            resolution: [display.get_framebuffer_dimensions().0 as f32, display.get_framebuffer_dimensions().1 as f32],
+            mouse: mouse,
+
+            camera: scene.camera.as_data(),
+            scene_data: &uniform_buffer,
         }, &Default::default()).unwrap();
         target.finish().unwrap();
     });
