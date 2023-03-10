@@ -28,15 +28,15 @@ impl Primitive {
     pub fn as_data(&self) -> [[f32; 4]; 4] {
         match &self {
             Self::Sphere(center, rad) => [
-                [1.0, center.x, 0.0, 0.0],
-                [*rad, center.y, 0.0, 0.0],
-                [0.0, center.z, 0.0, 0.0],
+                [1.0, *rad, 0.0, 0.0],
+                [center.x, center.y, center.z, 0.0],
+                [0.0, 0.0, 0.0, 0.0],
                 [0.0, 0.0, 0.0, 0.0],
             ],
             Self::AAPlane(axis, k) => [
-                [2.0, 0.0, 0.0, 0.0],
-                [axis.as_int() as f32, 0.0, 0.0, 0.0],
-                [*k, 0.0, 0.0, 0.0],
+                [2.0, axis.as_int() as f32, *k, 0.0],
+                [0.0, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0, 0.0],
                 [0.0, 0.0, 0.0, 0.0],
             ],
             Self::Cuboid(center, dims) => [

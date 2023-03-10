@@ -73,3 +73,9 @@ pub struct UniformBlockCsgs {
 implement_uniform_block!(UniformBlockObjects, objects);
 implement_uniform_block!(UniformBlockLights, lights);
 implement_uniform_block!(UniformBlockCsgs, csgs);
+
+#[derive(Clone, Copy)]
+pub struct SceneSettingsBlock {
+    pub background_color: [f32; 3],
+}
+implement_uniform_block!(SceneSettingsBlock, background_color);
