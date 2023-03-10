@@ -15,6 +15,7 @@ fn basic_scene() -> Scene {
     scene.set_camera(Camera::new(
         Point3::new(0., 2., 0.),
         Vec3::new(-0.15, 1.8, 1.0),
+        0.0, 2.5
     ));
 
     let cuboid = Primitive::Cuboid(Point3::new(0.0, 1., 6.), Vec3::new(0.5, 0.75, 0.5));
@@ -97,10 +98,14 @@ fn main() {
 
         let mut target = display.draw();
         target.clear_color(0.0, 0.0, 0.0, 0.0);
-        let uniform_buffer = glium::uniforms::UniformBuffer::new(&display, UniformBlock {
+        let buffer_objects = glium::uniforms::UniformBuffer::new(&display, UniformBlockObjects {
             objects: scene.get_objects(), 
+        }).unwrap();
+        let buffer_lights = glium::uniforms::UniformBuffer::new(&display, UniformBlockLights {
             lights: scene.get_lights(), 
-            csgs: scene.get_csgs()
+        }).unwrap();
+        let buffer_csgs = glium::uniforms::UniformBuffer::new(&display, UniformBlockCsgs {
+            csgs: scene.get_csgs(),
         }).unwrap();
         target.draw(&vertex_buffer, &indices, &program, &uniform! {
             time: time, 
@@ -108,7 +113,11 @@ fn main() {
             mouse: mouse,
 
             camera: scene.camera.as_data(),
-            scene_data: &uniform_buffer,
+            camera_origin: scene.camera.origin.to_tuple(),
+            camera_focal_length: scene.camera.focal_length,
+            scene_objects: &buffer_objects,
+            scene_lights: &buffer_lights,
+            scene_csgs: &buffer_csgs,
         }, &Default::default()).unwrap();
         target.finish().unwrap();
     });

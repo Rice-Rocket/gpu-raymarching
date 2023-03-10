@@ -17,7 +17,7 @@ impl Scene {
             objects: Vec::with_capacity(MAX_OBJECTS),
             lights: Vec::with_capacity(MAX_LIGHTS),
             csgs: Vec::new(),
-            camera: Camera::new(Vec3::new(0., 0., 0.), Vec3::new(1., 0., 0.)),
+            camera: Camera::new(Vec3::new(0., 0., 0.), Vec3::new(1., 0., 0.), 0.0, 2.5),
             uid_counter: 0,
         }
     }
@@ -59,9 +59,17 @@ impl Scene {
 
 
 #[derive(Clone, Copy)]
-pub struct UniformBlock {
+pub struct UniformBlockObjects {
     pub objects: [[[f32; 4]; 4]; MAX_OBJECTS],
+}
+#[derive(Clone, Copy)]
+pub struct UniformBlockLights {
     pub lights: [[f32; 3]; MAX_LIGHTS],
+}
+#[derive(Clone, Copy)]
+pub struct UniformBlockCsgs {
     pub csgs: [[f32; 4]; MAX_CSGS],
 }
-implement_uniform_block!(UniformBlock, objects, lights, csgs);
+implement_uniform_block!(UniformBlockObjects, objects);
+implement_uniform_block!(UniformBlockLights, lights);
+implement_uniform_block!(UniformBlockCsgs, csgs);
