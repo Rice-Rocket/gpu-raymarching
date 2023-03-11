@@ -13,17 +13,18 @@ use scene::*;
 fn basic_scene() -> Scene {
     let mut scene = Scene::new();
     scene.set_camera(Camera::new(
-        Point3::new(0., 1., 0.),
-        Vec3::new(0., 1., 1.),
+        point3(0., 1., 0.),
+        vec3(0., 1., 1.),
         0.0, 1.0
     ));
 
-    // let cuboid = Primitive::Cuboid(Point3::new(0.0, 1., 6.), Vec3::new(0.5, 0.75, 0.5));
-    let sphere = Primitive::Sphere(Point3::new(0., 1., 6.), 0.75, Rgb::new(0.2, 1.0, 0.2));
-    scene.add(Primitive::AAPlane(Axis::Y, 0., Rgb::new(1.0, 1.0, 1.0)));
+    let cuboid = Primitive::Cuboid(point3(2., 1., 6.), vec3(0.5, 0.5, 0.65), 0.05, rgb(1.0, 0.2, 0.2));
+    let sphere = Primitive::Sphere(point3(0., 1., 6.), 0.75, rgb(0.2, 1.0, 0.2));
+    scene.add(Primitive::Plane(vec3(0., 1., 0.), 0., rgb(1.0, 1.0, 1.0)));
     scene.add(sphere);
+    scene.add(cuboid);
     // scene.add_csg(Csg::new(CsgOp::SmoothMax(5.0), [Some(cuboid), Some(sphere)]));
-    scene.add_light(Point3::new(6., 5., -6.));
+    scene.add_light(point3(6., 5., -6.));
     return scene
 }
 
@@ -139,7 +140,8 @@ fn main() {
             csgs: scene.get_csgs(),
         }).unwrap();
         let scene_settings = glium::uniforms::UniformBuffer::new(&display, SceneSettingsBlock {
-            background_color: [0.7, 0.7, 0.9],
+            background_color: [0.7, 0.7, 0.9, 1.0],
+            fog_color: [0.30, 0.36, 0.60, 1.0],
         }).unwrap();
         target.draw(&vertex_buffer, &indices, &program, &uniform! {
             time: time, 

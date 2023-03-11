@@ -5,26 +5,25 @@ pub use vec3::*;
 
 
 
-
 pub enum Primitive {
-    Sphere(Point3, f32, Rgb),
-    AAPlane(Axis, f32, Rgb),
-    Cuboid(Vec3, Vec3, Rgb),
-    // Csg([Option<Primitive>; 4], CsgOp),
+    Sphere(Point3, f32, Rgb), // Center, Radius
+    Plane(Vec3, f32, Rgb), // Plane Normal, Distance Along Normal
+    Cuboid(Point3, Vec3, f32, Rgb), // Center, Dimensions, Rounding Value
+    BoxFrame(Point3, Vec3, f32), // Center, Dimensions, Edge Thickness
+    Torus(Point3, f32, f32), // Center, Inner Radius, Outer Radius
+    // Horseshoe()
 }
 
 impl Primitive {
     pub fn id(&self) -> isize {
         match &self {
             Self::Sphere(_, _, _) => 1,
-            Self::AAPlane(_, _, _) => 2,
-            Self::Cuboid(_, _, _) => 3,
+            Self::Plane(_, _, _) => 2,
+            Self::Cuboid(_, _, _, _) => 3,
             // Self::Csg(_, _) => 4,
             _ => 0,
         }
     }
-    //* do something either with mats or arrays or vec4s to represent data of primitive
-    //* as a single piece of data. 
     pub fn as_data(&self) -> [[f32; 4]; 4] {
         match &self {
             Self::Sphere(center, rad, color) => [
@@ -33,18 +32,24 @@ impl Primitive {
                 [0.0, 0.0, 0.0, 0.0],
                 [color.x, color.y, color.z, 0.0],
             ],
-            Self::AAPlane(axis, k, color) => [
-                [2.0, axis.as_int() as f32, *k, 0.0],
-                [0.0, 0.0, 0.0, 0.0],
+            Self::Plane(normal, k, color) => [
+                [2.0, *k, 0.0, 0.0],
+                [normal.x, normal.y, normal.z, 0.0],
                 [0.0, 0.0, 0.0, 0.0],
                 [color.x, color.y, color.z, 0.0],
             ],
-            Self::Cuboid(center, dims, color) => [
-                [3.0, center.x, dims.x, 0.0],
-                [0.0, center.y, dims.y, 0.0],
-                [0.0, center.z, dims.z, 0.0],
+            Self::Cuboid(center, dims, rounding, color) => [
+                [3.0, *rounding, 0.0, 0.0],
+                [center.x, center.y, center.z, 0.0],
+                [dims.x, dims.y, dims.z, 0.0],
                 [color.x, color.y, color.z, 0.0],
             ],
+            _ => [
+                [0.0, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0, 0.0],
+            ]
             // Self::Cuboid(center, dims, color) => [
             //     [3.0, 0.0, 0.0, 0.0],
             //     [0.0, 0.0, 0.0, 0.0],

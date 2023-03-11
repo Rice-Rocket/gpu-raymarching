@@ -5,11 +5,7 @@
 
 #define MAX_STEPS 128
 #define MAX_DIST 100.0
-#define MIN_DIST 0.01
-
-#define SPHERE_ID 1
-#define AAPLANE_ID 2
-#define CUBOID_ID 3
+#define MIN_DIST 0.0001
 
 
 in vec2 fragCoord;
@@ -24,7 +20,8 @@ uniform vec3 camera_origin;
 uniform float camera_focal_length;
 
 uniform scene_settings {
-    vec3 background_color;
+    vec4 background_color;
+    vec4 fog_color;
 };
 
 uniform scene_objects { mat4 objects[MAX_OBJECTS]; };
@@ -39,12 +36,17 @@ vec4 op_union(vec4 a, vec4 b) {
 
 vec4 get_sd(vec3 p, mat4 obj) {
     vec4 res;
-    if (obj[0][0] == 1) {
+    if (obj[0][0] == 1) { // sphere
         float dist = length(p - obj[1].xyz) - obj[0][1];
         res = vec4(dist, obj[3].xyz);
     }
-    if (obj[0][0] == 2) {
-        float dist = p[int(obj[0][1])] + obj[0][2];
+    if (obj[0][0] == 2) { // plane
+        float dist = dot(p, obj[1].xyz) + obj[0][1];
+        res = vec4(dist, obj[3].xyz);
+    }
+    if (obj[0][0] == 3) { // box
+        vec3 q = abs(p - obj[1].xyz) - obj[2].xyz;
+        float dist = length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0) - obj[0][1];
         res = vec4(dist, obj[3].xyz);
     }
     return res;
@@ -83,9 +85,10 @@ vec4 march(vec3 origin, vec3 direction) {
 float get_soft_shadow(vec3 ro, vec3 rd, float tmin, float tmax) {
     float res = 1.0;
     float t = tmin;
+    float w = 4.0;
     for (int i = 0; i < 24; i++) {
         float h = scene_sd(ro + rd * t).x;
-        float s = clamp(8.0 * h / t, 0.0, 1.0);
+        float s = clamp(w * h / t, 0.0, 1.0);
         res = min(res, s);
         t += clamp(h, 0.01, 0.2);
         if (res < 0.004 || t > tmax) break;
@@ -133,11 +136,15 @@ vec3 get_light(vec3 p, vec3 rd, vec3 normal, vec3 color) {
 
         float dif = clamp(dot(normal, l), 0.0, 1.0);
         dif *= occ;
-        dif *= get_soft_shadow(p, l, 0.02, 2.5);
+        dif *= get_soft_shadow(p, l, 0.02, 5.0);
+
+        vec3 directional = vec3(0.9, 0.9, 0.8) * dif;
+        vec3 ambient = vec3(0.03, 0.04, 0.1);
+
         float spec = pow(clamp(dot(normal, hal), 0.0, 1.0), 16.0);
         spec *= dif;
         spec *= 0.04 + 0.96 * pow(clamp(1.0 - dot(hal, l), 0.0, 1.0), 5.0);
-        total_light += color * 2.20 * dif;
+        total_light += color * (directional + ambient);
         total_light += 5.00 * spec;
         n_lights += 1;
     }
@@ -146,18 +153,25 @@ vec3 get_light(vec3 p, vec3 rd, vec3 normal, vec3 color) {
 }
 
 vec3 render(vec3 rd) {
-    vec3 color = background_color - max(rd.y, 0.0) * 0.3;
+    vec3 color = fog_color.xyz - max(rd.y, 0.0) * 0.4;
 
     vec4 res = march(camera_origin, rd);
     float dist = res.x;
     vec3 material = res.yzw;
 
-    vec3 pos = camera_origin + rd * dist;
-    vec3 normal = get_normal(pos);
-    color = get_light(pos, rd, normal, material);
+    if (material.x > -0.5) {
+        vec3 pos = camera_origin + rd * dist;
+        vec3 normal = get_normal(pos);
+        color = get_light(pos, rd, normal, material);
+
+        float fog_start = 4.0;
+        float fog_thickness = 8.0;
+        float fog_strength = 1.0 / (1 + exp(-(pos.z / fog_thickness) + fog_start));
+        color = mix(color, fog_color.xyz, fog_strength);
+    }
     // vec3 reflection = reflect(rd, normal);
 
-    color = clamp(mix(color, background_color, 1.0 - exp(-0.0001 * dist * dist * dist)), 0.0, 1.0);
+    // color = clamp(mix(color, background_color.xyz, 1.0 - exp(-0.0001 * dist * dist * dist)), 0.0, 1.0);
     color = pow(color, vec3(0.4545)); // gamma
     return clamp(color, 0.0, 1.0);
 }

@@ -387,6 +387,28 @@ impl Vec3 {
     }
 }
 
+pub fn vec3(x: f32, y: f32, z: f32) -> Vec3 {
+    Vec3 {
+        x: x,
+        y: y,
+        z: z
+    }
+}
+pub fn vec2(x: f32, y: f32) -> Vec2 {
+    Vec2 {
+        x: x,
+        y: y
+    }
+}
+
+pub fn point3(x: f32, y: f32, z: f32) -> Vec3 {
+    vec3(x, y, z)
+}
+
+pub fn rgb(r: f32, g: f32, b: f32) -> Vec3 {
+    vec3(r, g, b)
+}
+
 
 pub type Rgb = Vec3;
 pub type Point3 = Vec3;
