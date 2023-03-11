@@ -41,10 +41,10 @@ impl Scene {
         }
         return arr;
     }
-    pub fn get_lights(&self) -> [[f32; 3]; MAX_LIGHTS] {
-        let mut arr = [[0.0; 3]; MAX_LIGHTS];
+    pub fn get_lights(&self) -> [[f32; 4]; MAX_LIGHTS] {
+        let mut arr = [[0.0; 4]; MAX_LIGHTS];
         for (i, light) in self.lights.iter().enumerate() {
-            arr[i] = light.to_tuple();
+            arr[i] = [light.x, light.y, light.z, 1.0];
         };
         return arr;
     }
@@ -64,7 +64,7 @@ pub struct UniformBlockObjects {
 }
 #[derive(Clone, Copy)]
 pub struct UniformBlockLights {
-    pub lights: [[f32; 3]; MAX_LIGHTS],
+    pub lights: [[f32; 4]; MAX_LIGHTS],
 }
 #[derive(Clone, Copy)]
 pub struct UniformBlockCsgs {

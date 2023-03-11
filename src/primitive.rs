@@ -7,18 +7,18 @@ pub use vec3::*;
 
 
 pub enum Primitive {
-    Sphere(Point3, f32),
-    AAPlane(Axis, f32),
-    Cuboid(Vec3, Vec3),
+    Sphere(Point3, f32, Rgb),
+    AAPlane(Axis, f32, Rgb),
+    Cuboid(Vec3, Vec3, Rgb),
     // Csg([Option<Primitive>; 4], CsgOp),
 }
 
 impl Primitive {
     pub fn id(&self) -> isize {
         match &self {
-            Self::Sphere(_, _) => 1,
-            Self::AAPlane(_, _) => 2,
-            Self::Cuboid(_, _) => 3,
+            Self::Sphere(_, _, _) => 1,
+            Self::AAPlane(_, _, _) => 2,
+            Self::Cuboid(_, _, _) => 3,
             // Self::Csg(_, _) => 4,
             _ => 0,
         }
@@ -27,29 +27,29 @@ impl Primitive {
     //* as a single piece of data. 
     pub fn as_data(&self) -> [[f32; 4]; 4] {
         match &self {
-            Self::Sphere(center, rad) => [
+            Self::Sphere(center, rad, color) => [
                 [1.0, *rad, 0.0, 0.0],
                 [center.x, center.y, center.z, 0.0],
                 [0.0, 0.0, 0.0, 0.0],
-                [0.0, 0.0, 0.0, 0.0],
+                [color.x, color.y, color.z, 0.0],
             ],
-            Self::AAPlane(axis, k) => [
+            Self::AAPlane(axis, k, color) => [
                 [2.0, axis.as_int() as f32, *k, 0.0],
                 [0.0, 0.0, 0.0, 0.0],
                 [0.0, 0.0, 0.0, 0.0],
-                [0.0, 0.0, 0.0, 0.0],
+                [color.x, color.y, color.z, 0.0],
             ],
-            Self::Cuboid(center, dims) => [
+            Self::Cuboid(center, dims, color) => [
                 [3.0, center.x, dims.x, 0.0],
                 [0.0, center.y, dims.y, 0.0],
                 [0.0, center.z, dims.z, 0.0],
-                [0.0, 0.0, 0.0, 0.0],
+                [color.x, color.y, color.z, 0.0],
             ],
-            // Self::Cuboid(center, dims) => [
+            // Self::Cuboid(center, dims, color) => [
             //     [3.0, 0.0, 0.0, 0.0],
             //     [0.0, 0.0, 0.0, 0.0],
             //     [0.0, 0.0, 0.0, 0.0],
-            //     [0.0, 0.0, 0.0, 0.0],
+            //     [color.x, color.y, color.z, 0.0],
             // ],
         }
     }

@@ -19,12 +19,39 @@ fn basic_scene() -> Scene {
     ));
 
     // let cuboid = Primitive::Cuboid(Point3::new(0.0, 1., 6.), Vec3::new(0.5, 0.75, 0.5));
-    let sphere = Primitive::Sphere(Point3::new(0., 1., 6.), 1.);
-    scene.add(Primitive::AAPlane(Axis::Y, 0.));
+    let sphere = Primitive::Sphere(Point3::new(0., 1., 6.), 0.75, Rgb::new(0.2, 1.0, 0.2));
+    scene.add(Primitive::AAPlane(Axis::Y, 0., Rgb::new(1.0, 1.0, 1.0)));
     scene.add(sphere);
     // scene.add_csg(Csg::new(CsgOp::SmoothMax(5.0), [Some(cuboid), Some(sphere)]));
-    // scene.add_light(Point3::new(6., 5., -6.));
+    scene.add_light(Point3::new(6., 5., -6.));
     return scene
+}
+
+fn input(scene: &mut Scene, held_keys: &[bool; 255]) {
+    let movement_speed = 0.025;
+    let rotate_speed = 0.02;
+
+    if held_keys[glutin::event::VirtualKeyCode::A as usize] {
+        scene.camera.move_x(movement_speed); }
+    if held_keys[glutin::event::VirtualKeyCode::D as usize] {
+        scene.camera.move_x(-movement_speed); }
+    if held_keys[glutin::event::VirtualKeyCode::W as usize] {
+        scene.camera.move_z(movement_speed); }
+    if held_keys[glutin::event::VirtualKeyCode::S as usize] {
+        scene.camera.move_z(-movement_speed); }
+    if held_keys[glutin::event::VirtualKeyCode::Q as usize] {
+        scene.camera.move_y(movement_speed); }
+    if held_keys[glutin::event::VirtualKeyCode::E as usize] {
+        scene.camera.move_y(-movement_speed); }
+
+    if held_keys[glutin::event::VirtualKeyCode::Left as usize] {
+        scene.camera.rotate_x(rotate_speed); }
+    if held_keys[glutin::event::VirtualKeyCode::Right as usize] {
+        scene.camera.rotate_x(-rotate_speed); }
+    // if held_keys[glutin::event::VirtualKeyCode::Up as usize] {
+    //     scene.camera.rotate_y(rotate_speed); }
+    // if held_keys[glutin::event::VirtualKeyCode::Down as usize] {
+    //     scene.camera.rotate_y(-rotate_speed); }
 }
 
 
@@ -36,7 +63,7 @@ fn main() {
     let display = glium::Display::new(wb, cb, &event_loop).unwrap();
     let (vertex_buffer, indices, program) = load_program(&display);
 
-    let scene = basic_scene();
+    let mut scene = basic_scene();
     let mut time = 0f32;
     let mut held_keys = [false; 255];
     let mut mouse = [0f32; 4];
@@ -82,6 +109,9 @@ fn main() {
                     mouse[1] = position.y as f32;
                 }
                 _ => return,
+            },
+            glutin::event::Event::MainEventsCleared => {
+                input(&mut scene, &held_keys);
             },
             glutin::event::Event::NewEvents(cause) => match cause {
                 glutin::event::StartCause::ResumeTimeReached { .. } => (),
