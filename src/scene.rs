@@ -82,7 +82,7 @@ implement_uniform_block!(UniformBlockBoolOps, bool_ops);
 
 #[derive(Clone, Copy)]
 pub struct SceneSettingsBlock {
-    pub background_color: [f32; 4],
     pub fog_color: [f32; 4],
+    pub num_objects: i64,
 }
-implement_uniform_block!(SceneSettingsBlock, background_color, fog_color);
+implement_uniform_block!(SceneSettingsBlock, fog_color, num_objects);

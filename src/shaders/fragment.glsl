@@ -20,8 +20,8 @@ uniform vec3 camera_origin;
 uniform float camera_focal_length;
 
 uniform scene_settings {
-    vec4 background_color;
     vec4 fog_color;
+    int num_objects;
 };
 
 uniform scene_objects { mat4 objects[MAX_OBJECTS]; };
@@ -105,6 +105,7 @@ vec4 scene_sd(vec3 p) {
 
     int prev_bool_op = int(obj0[0][3]) - 1;
     for (int i = 1; i < MAX_OBJECTS; i++) {
+        if (i >= num_objects) break;
         mat4 obj = objects[i];
         float obj_type = obj[0][0];
         if (obj_type == 0.0) {

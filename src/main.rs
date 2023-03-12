@@ -138,8 +138,8 @@ fn main() {
             bool_ops: scene.get_bool_ops(),
         }).unwrap();
         let scene_settings = glium::uniforms::UniformBuffer::new(&display, SceneSettingsBlock {
-            background_color: [0.7, 0.7, 0.9, 1.0],
             fog_color: [0.30, 0.36, 0.60, 1.0],
+            num_objects: scene.objects.len() as i64 + 1,
         }).unwrap();
         target.draw(&vertex_buffer, &indices, &program, &uniform! {
             time: time, 
