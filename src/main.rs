@@ -134,7 +134,7 @@ fn main() {
         let buffer_lights = glium::uniforms::UniformBuffer::new(&display, UniformBlockLights {
             lights: scene.get_lights(), 
         }).unwrap();
-        let buffer_csgs = glium::uniforms::UniformBuffer::new(&display, UniformBlockBoolOps {
+        let buffer_bool_ops = glium::uniforms::UniformBuffer::new(&display, UniformBlockBoolOps {
             bool_ops: scene.get_bool_ops(),
         }).unwrap();
         let scene_settings = glium::uniforms::UniformBuffer::new(&display, SceneSettingsBlock {
@@ -154,7 +154,7 @@ fn main() {
 
             scene_objects: &buffer_objects,
             scene_lights: &buffer_lights,
-            scene_csgs: &buffer_csgs,
+            scene_bool_ops: &buffer_bool_ops,
         }, &Default::default()).unwrap();
         target.finish().unwrap();
     });

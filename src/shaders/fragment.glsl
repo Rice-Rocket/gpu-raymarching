@@ -45,7 +45,7 @@ vec4 op_smooth_union(vec4 a, vec4 b, float k) {
 
 
 vec4 get_sd(vec3 p, mat4 obj) {
-    vec4 res;
+    vec4 res = vec4(0);
     int obj_type = int(obj[0][0]);
     if (obj_type == 1) { // sphere
         float dist = length(p - obj[1].xyz) - obj[0][1];
@@ -65,21 +65,20 @@ vec4 get_sd(vec3 p, mat4 obj) {
 
 
 vec4 bool_op_sd(vec2 op, vec4 a, vec4 b) {
-    vec4 res;
-    // if (op < 2) {
-    //     res = op_union(a, b);
-    // }
-    // ! Crazy weird bug, somehow op is equal to everything
-    if (op.x == 2) {
+    vec4 res = vec4(0);
+    if (op.x < 2.0) {
+        res = op_union(a, b);
+    }
+    if (op.x == 2.0) {
         res = op_intersect(a, b);
     }
-    // if (op == 3) {
-    //     res = op_difference(a, b);
-    // }
-    // if (op.x == 4.0) {
-    //     float k = op.y;
-    //     return op_smooth_union(a, b, k);
-    // }
+    if (op.x == 3.0) {
+        res = op_difference(a, b);
+    }
+    if (op.x == 4.0) {
+        float k = op.y;
+        res = op_smooth_union(a, b, k);
+    }
     return res;
 }
 
@@ -111,7 +110,7 @@ vec4 scene_sd(vec3 p) {
             // prev_bool_op = bool_op_index;
             // continue;
         } else {
-            vec2 bool_op = bool_ops[bool_op_index];
+            vec2 bool_op = bool_ops[0];
             pres = bool_op_sd(bool_op, pres, d);
         }
         prev_bool_op = bool_op_index;
