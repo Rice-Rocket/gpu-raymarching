@@ -70,7 +70,7 @@ vec4 bool_op_sd(vec2 op, vec4 a, vec4 b) {
     //     res = op_union(a, b);
     // }
     // ! Crazy weird bug, somehow op is equal to everything
-    if (op.x == op.x + 1) {
+    if (op.x == 2) {
         res = op_intersect(a, b);
     }
     // if (op == 3) {
@@ -111,7 +111,7 @@ vec4 scene_sd(vec3 p) {
             // prev_bool_op = bool_op_index;
             // continue;
         } else {
-            vec2 bool_op = bool_ops[0];
+            vec2 bool_op = bool_ops[bool_op_index];
             pres = bool_op_sd(bool_op, pres, d);
         }
         prev_bool_op = bool_op_index;
