@@ -1,4 +1,4 @@
-#version 330
+#version 410
 #define MAX_OBJECTS 32
 #define MAX_BOOL_OPS 32
 #define MAX_LIGHTS 8
@@ -66,19 +66,34 @@ vec4 get_sd(vec3 p, mat4 obj) {
 
 vec4 bool_op_sd(vec2 op, vec4 a, vec4 b) {
     vec4 res = vec4(0);
-    if (op.x < 2.0) {
-        res = op_union(a, b);
+    int op_type = int(op.x);
+    float k = op.y;
+    switch (op_type) {
+        case 1:
+            res = op_union(a, b);
+            break;
+        case 2:
+            res = op_intersect(a, b);
+            break;
+        case 3: 
+            res = op_difference(a, b);
+            break;
+        case 4: 
+            res = op_smooth_union(a, b, k);
+            break;
     }
-    if (op.x == 2.0) {
-        res = op_intersect(a, b);
-    }
-    if (op.x == 3.0) {
-        res = op_difference(a, b);
-    }
-    if (op.x == 4.0) {
-        float k = op.y;
-        res = op_smooth_union(a, b, k);
-    }
+    // if (op_type < 2.0) {
+    //     res = op_union(a, b);
+    // }
+    // else if (op_type == 2.0) {
+    //     res = op_intersect(a, b);
+    // }
+    // else if (op_type == 3.0) {
+    //     res = op_difference(a, b);
+    // }
+    // else if (op_type == 4.0) {
+    //     res = op_smooth_union(a, b, k);
+    // }
     return res;
 }
 
