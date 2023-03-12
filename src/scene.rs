@@ -59,7 +59,6 @@ impl Scene {
         for (i, op) in self.bool_ops.iter().enumerate() {
             arr[i] = op.get();
         };
-        println!("{:?}", arr);
         return arr;
     }
 }

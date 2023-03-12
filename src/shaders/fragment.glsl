@@ -64,13 +64,13 @@ vec4 get_sd(vec3 p, mat4 obj) {
 }
 
 
-vec4 bool_op_sd(float op, float k, vec4 a, vec4 b) {
+vec4 bool_op_sd(vec2 op, vec4 a, vec4 b) {
     vec4 res;
     // if (op < 2) {
     //     res = op_union(a, b);
     // }
     // ! Crazy weird bug, somehow op is equal to everything
-    if (op == op * 2) {
+    if (op.x == op.x + 1) {
         res = op_intersect(a, b);
     }
     // if (op == 3) {
@@ -97,24 +97,24 @@ vec4 scene_sd(vec3 p) {
             res = op_union(res, pres);
             break;
         };
-        int bool_op_uid = int(obj[0][3]) - 1;
+        int bool_op_index = int(obj[0][3]) - 1;
         vec4 d = get_sd(p, obj);
-        
-        if (bool_op_uid != prev_bool_op) {
+
+        if (bool_op_index != prev_bool_op) {
             res = op_union(res, pres);
             pres = d;
-            prev_bool_op = bool_op_uid;
-            continue;
+            // prev_bool_op = bool_op_index;
+            // continue;
         }
-        if (bool_op_uid == -1) {
-            pres = bool_op_sd(1, 0, pres, d);
-            prev_bool_op = bool_op_uid;
-            continue;
+        else if (bool_op_index == -1) {
+            pres = bool_op_sd(vec2(1), pres, d);
+            // prev_bool_op = bool_op_index;
+            // continue;
+        } else {
+            vec2 bool_op = bool_ops[0];
+            pres = bool_op_sd(bool_op, pres, d);
         }
-
-        vec2 bool_op = bool_ops[bool_op_uid];
-        pres = bool_op_sd(bool_op.x, bool_op.y, pres, d);
-        prev_bool_op = bool_op_uid;
+        prev_bool_op = bool_op_index;
     }
     return res;
 }
