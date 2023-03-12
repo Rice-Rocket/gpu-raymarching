@@ -1,7 +1,7 @@
 #version 330
-#define MAX_OBJECTS 128
-#define MAX_CSGS 128
-#define MAX_LIGHTS 16
+#define MAX_OBJECTS 32
+#define MAX_BOOL_OPS 32
+#define MAX_LIGHTS 8
 
 #define MAX_STEPS 128
 #define MAX_DIST 100.0
@@ -26,25 +26,36 @@ uniform scene_settings {
 
 uniform scene_objects { mat4 objects[MAX_OBJECTS]; };
 uniform scene_lights { vec4 lights[MAX_LIGHTS]; };
-uniform scene_csgs { vec4 csgs[MAX_CSGS]; };
+uniform scene_bool_ops { vec2 bool_ops[MAX_BOOL_OPS]; };
 
 
 vec4 op_union(vec4 a, vec4 b) {
     return (a.x < b.x) ? a : b;
 }
+vec4 op_intersect(vec4 a, vec4 b) {
+    return (a.x > b.x) ? a : b;
+}
+vec4 op_difference(vec4 a, vec4 b) {
+    return (a.x > -b.x) ? a : b;
+}
+vec4 op_smooth_union(vec4 a, vec4 b, float k) {
+    float t = -(log(exp(k * -a.x) + exp(k * -b.x)) / k);
+    return vec4(t, mix(a.yzw, b.yzw, (t - a.x) / (-b.x - a.x)));
+}
 
 
 vec4 get_sd(vec3 p, mat4 obj) {
     vec4 res;
-    if (obj[0][0] == 1) { // sphere
+    int obj_type = int(obj[0][0]);
+    if (obj_type == 1) { // sphere
         float dist = length(p - obj[1].xyz) - obj[0][1];
         res = vec4(dist, obj[3].xyz);
     }
-    if (obj[0][0] == 2) { // plane
+    if (obj_type == 2) { // plane
         float dist = dot(p, obj[1].xyz) + obj[0][1];
         res = vec4(dist, obj[3].xyz);
     }
-    if (obj[0][0] == 3) { // box
+    if (obj_type == 3) { // box
         vec3 q = abs(p - obj[1].xyz) - obj[2].xyz;
         float dist = length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0) - obj[0][1];
         res = vec4(dist, obj[3].xyz);
@@ -52,13 +63,58 @@ vec4 get_sd(vec3 p, mat4 obj) {
     return res;
 }
 
+
+vec4 bool_op_sd(float op, float k, vec4 a, vec4 b) {
+    vec4 res;
+    // if (op < 2) {
+    //     res = op_union(a, b);
+    // }
+    // ! Crazy weird bug, somehow op is equal to everything
+    if (op == op * 2) {
+        res = op_intersect(a, b);
+    }
+    // if (op == 3) {
+    //     res = op_difference(a, b);
+    // }
+    // if (op.x == 4.0) {
+    //     float k = op.y;
+    //     return op_smooth_union(a, b, k);
+    // }
+    return res;
+}
+
+
 vec4 scene_sd(vec3 p) {
-    vec4 res = get_sd(p, objects[0]);
+    mat4 obj0 = objects[0];
+    vec4 pres = get_sd(p, obj0);
+    vec4 res = vec4(1e20, -1, -1, -1);
+
+    int prev_bool_op = int(obj0[0][3]) - 1;
     for (int i = 1; i < MAX_OBJECTS; i++) {
         mat4 obj = objects[i];
-        if (obj[0][0] == 0) break;
+        float obj_type = obj[0][0];
+        if (obj_type == 0.0) {
+            res = op_union(res, pres);
+            break;
+        };
+        int bool_op_uid = int(obj[0][3]) - 1;
         vec4 d = get_sd(p, obj);
-        res = op_union(d, res);
+        
+        if (bool_op_uid != prev_bool_op) {
+            res = op_union(res, pres);
+            pres = d;
+            prev_bool_op = bool_op_uid;
+            continue;
+        }
+        if (bool_op_uid == -1) {
+            pres = bool_op_sd(1, 0, pres, d);
+            prev_bool_op = bool_op_uid;
+            continue;
+        }
+
+        vec2 bool_op = bool_ops[bool_op_uid];
+        pres = bool_op_sd(bool_op.x, bool_op.y, pres, d);
+        prev_bool_op = bool_op_uid;
     }
     return res;
 }

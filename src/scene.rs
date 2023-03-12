@@ -4,9 +4,9 @@ pub use camera::*;
 
 
 pub struct Scene {
-    pub objects: Vec<Primitive>,
+    pub objects: Vec<(Primitive, usize)>,
     pub lights: Vec<Vec3>,
-    pub csgs: Vec<Csg>,
+    pub bool_ops: Vec<BooleanOp>,
     pub camera: Camera,
     uid_counter: isize,
 }
@@ -16,28 +16,34 @@ impl Scene {
         Self {
             objects: Vec::with_capacity(MAX_OBJECTS),
             lights: Vec::with_capacity(MAX_LIGHTS),
-            csgs: Vec::new(),
+            bool_ops: Vec::new(),
             camera: Camera::new(Vec3::new(0., 0., 0.), Vec3::new(1., 0., 0.), 0.0, 2.5),
             uid_counter: 0,
         }
     }
-    pub fn add(&mut self, object: Primitive) {
-        self.objects.push(object);
+    pub fn add(&mut self, object: Primitive) -> usize {
+        self.objects.push((object, 0));
         self.uid_counter += 1;
+        return (self.uid_counter - 1) as usize;
     }
     pub fn add_light(&mut self, point: Point3) {
         self.lights.push(point);
     }
-    pub fn add_csg(&mut self, csg: Csg) {
-        self.csgs.push(csg);
+    pub fn add_bool_op(&mut self, mut bool_op: BooleanOp) {
+        bool_op.uid = self.bool_ops.len() + 1;
+        for i in bool_op.obj_uids.iter() {
+            self.objects[*i].1 = bool_op.uid;
+        }
+        self.bool_ops.push(bool_op);
     }
     pub fn set_camera(&mut self, camera: Camera) {
         self.camera = camera;
     }
-    pub fn get_objects(&self) -> [[[f32; 4]; 4]; MAX_OBJECTS] {
+    pub fn get_objects(&mut self) -> [[[f32; 4]; 4]; MAX_OBJECTS] {
         let mut arr = [[[0.; 4]; 4]; MAX_OBJECTS];
+        self.objects.sort_by_key(|x| x.1);
         for (i, obj) in self.objects.iter().enumerate() {
-            arr[i] = obj.as_data();
+            arr[i] = obj.0.as_data(obj.1 as f32);
         }
         return arr;
     }
@@ -48,11 +54,12 @@ impl Scene {
         };
         return arr;
     }
-    pub fn get_csgs(&self) -> [[f32; 4]; MAX_CSGS] {
-        let mut arr = [[0.0; 4]; MAX_CSGS];
-        for (i, csg) in self.csgs.iter().enumerate() {
-            arr[i] = csg.get();
+    pub fn get_bool_ops(&self) -> [[f32; 2]; MAX_BOOL_OPS] {
+        let mut arr = [[0.0; 2]; MAX_BOOL_OPS];
+        for (i, op) in self.bool_ops.iter().enumerate() {
+            arr[i] = op.get();
         };
+        println!("{:?}", arr);
         return arr;
     }
 }
@@ -67,12 +74,12 @@ pub struct UniformBlockLights {
     pub lights: [[f32; 4]; MAX_LIGHTS],
 }
 #[derive(Clone, Copy)]
-pub struct UniformBlockCsgs {
-    pub csgs: [[f32; 4]; MAX_CSGS],
+pub struct UniformBlockBoolOps {
+    pub bool_ops: [[f32; 2]; MAX_BOOL_OPS],
 }
 implement_uniform_block!(UniformBlockObjects, objects);
 implement_uniform_block!(UniformBlockLights, lights);
-implement_uniform_block!(UniformBlockCsgs, csgs);
+implement_uniform_block!(UniformBlockBoolOps, bool_ops);
 
 #[derive(Clone, Copy)]
 pub struct SceneSettingsBlock {

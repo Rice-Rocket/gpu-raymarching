@@ -18,19 +18,17 @@ fn basic_scene() -> Scene {
         0.0, 1.0
     ));
 
-    let cuboid = Primitive::Cuboid(point3(2., 1., 6.), vec3(0.5, 0.5, 0.65), 0.05, rgb(1.0, 0.2, 0.2));
-    let sphere = Primitive::Sphere(point3(0., 1., 6.), 0.75, rgb(0.2, 1.0, 0.2));
     scene.add(Primitive::Plane(vec3(0., 1., 0.), 0., rgb(1.0, 1.0, 1.0)));
-    scene.add(sphere);
-    scene.add(cuboid);
-    // scene.add_csg(Csg::new(CsgOp::SmoothMax(5.0), [Some(cuboid), Some(sphere)]));
+    let sphere = scene.add(Primitive::Sphere(point3(0., 1., 6.), 0.75, rgb(0.2, 1.0, 0.2)));
+    let cuboid = scene.add(Primitive::Cuboid(point3(1., 1., 6.), vec3(0.5, 0.5, 0.65), 0.05, rgb(1.0, 0.2, 0.2)));
+    scene.add_bool_op(BooleanOp::new(BooleanOpType::Intersect, vec![sphere, cuboid]));
     scene.add_light(point3(6., 5., -6.));
     return scene
 }
 
 fn input(scene: &mut Scene, held_keys: &[bool; 255]) {
-    let movement_speed = 0.025;
-    let rotate_speed = 0.02;
+    let movement_speed = 0.05;
+    let rotate_speed = 0.04;
 
     if held_keys[glutin::event::VirtualKeyCode::A as usize] {
         scene.camera.move_x(movement_speed); }
@@ -136,8 +134,8 @@ fn main() {
         let buffer_lights = glium::uniforms::UniformBuffer::new(&display, UniformBlockLights {
             lights: scene.get_lights(), 
         }).unwrap();
-        let buffer_csgs = glium::uniforms::UniformBuffer::new(&display, UniformBlockCsgs {
-            csgs: scene.get_csgs(),
+        let buffer_csgs = glium::uniforms::UniformBuffer::new(&display, UniformBlockBoolOps {
+            bool_ops: scene.get_bool_ops(),
         }).unwrap();
         let scene_settings = glium::uniforms::UniformBuffer::new(&display, SceneSettingsBlock {
             background_color: [0.7, 0.7, 0.9, 1.0],

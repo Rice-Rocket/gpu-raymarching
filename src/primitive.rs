@@ -24,22 +24,22 @@ impl Primitive {
             _ => 0,
         }
     }
-    pub fn as_data(&self) -> [[f32; 4]; 4] {
+    pub fn as_data(&self, op_group: f32) -> [[f32; 4]; 4] {
         match &self {
             Self::Sphere(center, rad, color) => [
-                [1.0, *rad, 0.0, 0.0],
+                [1.0, *rad, 0.0, op_group],
                 [center.x, center.y, center.z, 0.0],
                 [0.0, 0.0, 0.0, 0.0],
                 [color.x, color.y, color.z, 0.0],
             ],
             Self::Plane(normal, k, color) => [
-                [2.0, *k, 0.0, 0.0],
+                [2.0, *k, 0.0, op_group],
                 [normal.x, normal.y, normal.z, 0.0],
                 [0.0, 0.0, 0.0, 0.0],
                 [color.x, color.y, color.z, 0.0],
             ],
             Self::Cuboid(center, dims, rounding, color) => [
-                [3.0, *rounding, 0.0, 0.0],
+                [3.0, *rounding, 0.0, op_group],
                 [center.x, center.y, center.z, 0.0],
                 [dims.x, dims.y, dims.z, 0.0],
                 [color.x, color.y, color.z, 0.0],
@@ -51,7 +51,7 @@ impl Primitive {
                 [0.0, 0.0, 0.0, 0.0],
             ]
             // Self::Cuboid(center, dims, color) => [
-            //     [3.0, 0.0, 0.0, 0.0],
+            //     [3.0, 0.0, 0.0, op_group],
             //     [0.0, 0.0, 0.0, 0.0],
             //     [0.0, 0.0, 0.0, 0.0],
             //     [color.x, color.y, color.z, 0.0],
@@ -67,45 +67,39 @@ impl Primitive {
 
 
 #[derive(Clone, Copy)]
-pub enum CsgOp {
-    Min,
-    Max,
-    SmoothMin(f32),
-    SmoothMax(f32),
+pub enum BooleanOpType {
+    Union,
+    Intersect,
+    Subtract,
+    SmoothUnion(f32),
+    SmoothIntersect(f32),
 }
 
 
 
-pub struct Csg {
-    operator: CsgOp,
-    objects: [Option<Primitive>; 2],
-    obj_uids: [isize; 2],
+pub struct BooleanOp {
+    operator: BooleanOpType,
+    pub obj_uids: Vec<usize>,
+    pub uid: usize
 }
 
 // * Csgs have indices to two primitives. csgs just dictate how those two act together. 
 // * in the end, there will be a list of csgs that will be passed to the shader
-impl Csg {
-    pub fn new(operator: CsgOp, objs: [Option<Primitive>; 2]) -> Self {
+impl BooleanOp {
+    pub fn new(operator: BooleanOpType, objs: Vec<usize>) -> Self {
         Self {
             operator: operator,
-            objects: objs,
-            obj_uids: [0; 2]
+            obj_uids: objs,
+            uid: 0
         }
     }
-    pub fn set_uids(&mut self, uids: Vec<isize>) {
-        for (i, id) in uids.iter().enumerate() {
-            self.obj_uids[i] = *id;
-        }
-    }
-    pub fn as_array(&self) -> [isize; 2] {
-        self.obj_uids
-    }
-    pub fn get(&self) -> [f32; 4] {
+    pub fn get(&self) -> [f32; 2] {
         match self.operator {
-            CsgOp::Min => [1., self.obj_uids[0] as f32, self.obj_uids[1] as f32, 0.0],
-            CsgOp::Max => [2., self.obj_uids[0] as f32, self.obj_uids[1] as f32, 0.0],
-            CsgOp::SmoothMin(k) => [3., self.obj_uids[0] as f32, self.obj_uids[1] as f32, k],
-            CsgOp::SmoothMax(k) => [4., self.obj_uids[0] as f32, self.obj_uids[1] as f32, k],
+            BooleanOpType::Union => [1., 0.0],
+            BooleanOpType::Intersect => [2., 0.0],
+            BooleanOpType::Subtract => [3., 0.0],
+            BooleanOpType::SmoothUnion(k) => [4., k],
+            BooleanOpType::SmoothIntersect(k) => [5., k],
         }
     }
 }
