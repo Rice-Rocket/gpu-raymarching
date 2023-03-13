@@ -19,14 +19,14 @@ uniform mat3 camera;
 uniform vec3 camera_origin;
 uniform float camera_focal_length;
 
-uniform scene_settings {
-    vec4 fog_color;
-    int num_objects;
-};
+uniform scene_fog_color { vec4 fog_color; };
+uniform scene_params { vec4 params; };
+uniform scene_consts { vec4 consts; };
 
 uniform scene_objects { mat4 objects[MAX_OBJECTS]; };
 uniform scene_lights { vec4 lights[MAX_LIGHTS]; };
 uniform scene_bool_ops { vec2 bool_ops[MAX_BOOL_OPS]; };
+uniform scene_transforms { mat4 transformations[MAX_BOOL_OPS]; };
 
 
 vec4 op_union(vec4 a, vec4 b) {
@@ -36,7 +36,7 @@ vec4 op_intersect(vec4 a, vec4 b) {
     return (a.x > b.x) ? a : b;
 }
 vec4 op_difference(vec4 a, vec4 b) {
-    return (a.x > -b.x) ? a : b;
+    return (a.x > -b.x) ? a : -b;
 }
 vec4 op_smooth_union(vec4 a, vec4 b, float k) {
     float t = -(log(exp(k * -a.x) + exp(k * -b.x)) / k);
@@ -44,19 +44,21 @@ vec4 op_smooth_union(vec4 a, vec4 b, float k) {
 }
 
 
-vec4 get_sd(vec3 p, mat4 obj) {
+vec4 get_sd(vec3 pos, mat4 obj, int index) {
     vec4 res = vec4(0);
     int obj_type = int(obj[0][0]);
+    // mat4 trans_data = 
+    vec3 p = pos - transformations[index][0].xyz;
     if (obj_type == 1) { // sphere
-        float dist = length(p - obj[1].xyz) - obj[0][1];
+        float dist = length(p) - obj[0][1];
         res = vec4(dist, obj[3].xyz);
     }
     if (obj_type == 2) { // plane
-        float dist = dot(p, obj[1].xyz) + obj[0][1];
+        float dist = dot(p, obj[2].xyz) + obj[0][1];
         res = vec4(dist, obj[3].xyz);
     }
     if (obj_type == 3) { // box
-        vec3 q = abs(p - obj[1].xyz) - obj[2].xyz;
+        vec3 q = abs(p) - obj[2].xyz;
         float dist = length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0) - obj[0][1];
         res = vec4(dist, obj[3].xyz);
     }
@@ -100,12 +102,12 @@ vec4 bool_op_sd(vec2 op, vec4 a, vec4 b) {
 
 vec4 scene_sd(vec3 p) {
     mat4 obj0 = objects[0];
-    vec4 pres = get_sd(p, obj0);
+    vec4 pres = get_sd(p, obj0, 0);
     vec4 res = vec4(1e20, -1, -1, -1);
 
     int prev_bool_op = int(obj0[0][3]) - 1;
     for (int i = 1; i < MAX_OBJECTS; i++) {
-        if (i >= num_objects) break;
+        if (i >= int(consts.x)) break;
         mat4 obj = objects[i];
         float obj_type = obj[0][0];
         if (obj_type == 0.0) {
@@ -113,7 +115,7 @@ vec4 scene_sd(vec3 p) {
             break;
         };
         int bool_op_index = int(obj[0][3]) - 1;
-        vec4 d = get_sd(p, obj);
+        vec4 d = get_sd(p, obj, i);
 
         if (bool_op_index != prev_bool_op) {
             res = op_union(res, pres);
@@ -156,7 +158,7 @@ vec4 march(vec3 origin, vec3 direction) {
 float get_soft_shadow(vec3 ro, vec3 rd, float tmin, float tmax) {
     float res = 1.0;
     float t = tmin;
-    float w = 4.0;
+    float w = params.x;
     for (int i = 0; i < 24; i++) {
         float h = scene_sd(ro + rd * t).x;
         float s = clamp(w * h / t, 0.0, 1.0);
@@ -198,7 +200,7 @@ vec3 get_normal(vec3 p) {
 vec3 get_light(vec3 p, vec3 rd, vec3 normal, vec3 color) {
     float n_lights = 0;
     vec3 total_light = vec3(0);
-    float occ = get_ambient_occlusion(p, normal);
+    float occ = (params.z != 0.0) ? get_ambient_occlusion(p, normal) : 1.0;
     for (int i = 0; i < MAX_LIGHTS; i++) {
         if (lights[i].w == 0) break;
         vec3 light_pos = lights[i].xyz;
@@ -207,7 +209,9 @@ vec3 get_light(vec3 p, vec3 rd, vec3 normal, vec3 color) {
 
         float dif = clamp(dot(normal, l), 0.0, 1.0);
         dif *= occ;
-        dif *= get_soft_shadow(p, l, 0.02, 5.0);
+        if (params.y != 0.0) {
+            dif *= get_soft_shadow(p, l, 0.02, 5.0);
+        }
 
         vec3 directional = vec3(0.9, 0.9, 0.8) * dif;
         vec3 ambient = vec3(0.03, 0.04, 0.1);

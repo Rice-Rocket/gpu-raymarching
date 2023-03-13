@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 #[path = "constants.rs"] mod constants;
 pub use constants::*;
 pub use std::f32::consts::{PI, TAU};

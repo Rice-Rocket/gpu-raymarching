@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 use std::ops::{Add, Sub, Mul, Div, Neg, Index, IndexMut};
 #[path = "utils.rs"] mod utils;
 pub use utils::*;
@@ -5,7 +6,7 @@ pub use utils::*;
 
 
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct Vec2 {
     pub x: f32,
     pub y: f32,
@@ -162,7 +163,7 @@ impl Vec2 {
 
 
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct Vec3 {
     pub x: f32,
     pub y: f32,
