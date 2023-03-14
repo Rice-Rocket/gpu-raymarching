@@ -100,6 +100,11 @@ fn main() {
             let mut x = pos.x;
             let mut y = pos.y;
             let mut z = pos.z;
+
+            let rot = scene.obj_transforms[selected_object].rotate;
+            let mut yaw = rot.x;
+            let mut pitch = rot.y;
+            let mut roll = rot.z;
             egui::Window::new(&scene.objects[selected_object].as_str())
                 .collapsible(true)
                 .current_pos((20., 20.)).show(egui_ctx, |ui| {
@@ -107,9 +112,17 @@ fn main() {
                 ui.add(egui::DragValue::new(&mut x).speed(0.05).prefix("X: "));
                 ui.add(egui::DragValue::new(&mut y).speed(0.05).prefix("Y: "));
                 ui.add(egui::DragValue::new(&mut z).speed(0.05).prefix("Z: "));
+
+                ui.label("Rotation");
+                ui.add(egui::DragValue::new(&mut yaw).speed(0.05).prefix("Yaw: "));
+                ui.add(egui::DragValue::new(&mut pitch).speed(0.05).prefix("Pitch: "));
+                ui.add(egui::DragValue::new(&mut roll).speed(0.05).prefix("Roll: "));
             });
             if (pos.x != x) || (pos.y != y) || (pos.z != z) {
                 scene.obj_transforms[selected_object].translate = vec3(x, y, z);
+            }
+            if (rot.x != yaw) || (rot.y != pitch) || (rot.z != roll) {
+                scene.obj_transforms[selected_object].rotate = vec3(yaw, pitch, roll);
             }
 
             egui::Window::new("Scene")
