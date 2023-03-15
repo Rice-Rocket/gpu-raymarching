@@ -7,4 +7,3 @@ edition = "2021"
 
 [dependencies]
 glium = "*"
-egui_glium = { version = "0.20.1", default-features = true }

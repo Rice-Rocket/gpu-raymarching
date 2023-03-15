@@ -1,12 +1,8 @@
 #version 410
-#define MAX_OBJECTS 32
-#define MAX_BOOL_OPS 32
-#define MAX_LIGHTS 8
 
-#define MAX_STEPS 128
+#define MAX_STEPS 256
 #define MAX_DIST 100.0
 #define MIN_DIST 0.0001
-
 
 in vec2 fragCoord;
 out vec4 fragColor;
@@ -18,16 +14,6 @@ uniform vec4 mouse;
 uniform mat3 camera;
 uniform vec3 camera_origin;
 uniform float camera_focal_length;
-
-uniform scene_fog_color { vec4 fog_color; };
-uniform scene_params { vec4 params; };
-uniform scene_consts { vec4 consts; };
-
-uniform scene_objects { mat4 objects[MAX_OBJECTS]; };
-uniform scene_lights { vec4 lights[MAX_LIGHTS]; };
-uniform scene_bool_ops { vec2 bool_ops[MAX_BOOL_OPS]; };
-uniform scene_transforms { mat4 transformations[MAX_BOOL_OPS]; };
-
 
 vec4 op_union(vec4 a, vec4 b) {
     return (a.x < b.x) ? a : b;
@@ -73,19 +59,20 @@ mat4 rotate_mat(vec3 theta) {
     );
 }
 
+// Radius
 float sphere_sd(vec3 p, float r) {
     return length(p) - r;
 }
-
+// Plane Normal, Distance Along Normal
 float plane_sd(vec3 p, vec3 n, float h) {
     return dot(p, n) + h;
 }
-
+// Dimensions, Rounding value
 float box_sd(vec3 p, vec3 b, float r) {
     vec3 q = abs(p) - b;
     return length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0) - r;
 }
-
+// Dimensions, Edge Thickness
 float boxframe_sd(vec3 p, vec3 b, float e) {
     p = abs(p) - b;
     vec3 q = abs(p + e) - e;
@@ -94,28 +81,25 @@ float boxframe_sd(vec3 p, vec3 b, float e) {
       length(max(vec3(q.x, p.y, q.z), 0.0)) + min(max(q.x, max(p.y, q.z)), 0.0)),
       length(max(vec3(q.x, q.y, p.z), 0.0)) + min(max(q.x, max(q.y, p.z)), 0.0));
 }
-
+// Radius, Thickness
 float torus_sd(vec3 p, float tx, float ty) {
     vec2 q = vec2(length(p.xz)-tx,p.y);
     return length(q)-ty;
 }
-
+// Cutoff 1, Cutoff 2, Radius, Thickness
 float capped_torus_sd(vec3 p, float scx, float scy, float ra, float rb) {
     p.x = abs(p.x);
     float k = (scy*p.x>scx*p.y) ? dot(p.xy,vec2(scx, scy)) : length(p.xy);
     return sqrt( dot(p,p) + ra*ra - 2.0*ra*k ) - rb;
 }
-
+// Length, Radius, Thickness
 float link_sd(vec3 p, float le, float r1, float r2) {
     vec3 q = vec3( p.x, max(abs(p.y)-le,0.0), p.z );
     return length(vec2(length(q.xy)-r1,q.z)) - r2;
 }
-
+// Angle, Height
 float cone_sd(vec3 p, float t, float h) {
     vec2 c = vec2(sin(t), cos(t));
-    // c is the sin/cos of the angle, h is height
-    // Alternatively pass q instead of (c,h),
-    // which is the point at the base in 2D
     vec2 q = h * vec2(c.x / c.y, -1.0);
         
     vec2 w = vec2( length(p.xz), p.y );
@@ -126,7 +110,7 @@ float cone_sd(vec3 p, float t, float h) {
     float s = max( k*(w.x*q.y-w.y*q.x),k*(w.y-q.y)  );
     return sqrt(d)*sign(s);
 }
-
+// Radius, Height
 float hex_prism_sd(vec3 p, float hx, float hy) {
     const vec3 k = vec3(-0.8660254, 0.5, 0.57735);
     p = abs(p);
@@ -136,27 +120,27 @@ float hex_prism_sd(vec3 p, float hx, float hy) {
         p.z-hy );
     return min(max(d.x,d.y),0.0) + length(max(d,0.0));
 }
-
+// Radius, Height
 float tri_prism_sd(vec3 p, float hx, float hy) {
     vec3 q = abs(p);
     return max(q.z-hy,max(q.x*0.866025+p.y*0.5,-p.y)-hx*0.5);
 }
-
+// Height, Radius
 float capsule_sd(vec3 p, float h, float r) {
     p.y -= clamp( p.y, 0.0, h );
     return length( p ) - r;
 }
-
+// Height, Radius
 float capped_cylinder_sd(vec3 p, float h, float r) {
     vec2 d = abs(vec2(length(p.xz),p.y)) - vec2(r,h);
     return min(max(d.x,d.y),0.0) + length(max(d,0.0));
 }
-
+// Radius, Rounding Value, Height
 float round_cylinder_sd(vec3 p, float ra, float rb, float h) {
     vec2 d = vec2( length(p.xz)-2.0*ra+rb, abs(p.y) - h );
     return min(max(d.x,d.y),0.0) + length(max(d,0.0)) - rb;
 }
-
+// Height, Base Radius, Tip Radius
 float capped_cone_sd(vec3 p, float h, float r1, float r2) {
     vec2 q = vec2( length(p.xz), p.y );
     vec2 k1 = vec2(r2,h);
@@ -166,7 +150,7 @@ float capped_cone_sd(vec3 p, float h, float r1, float r2) {
     float s = (cb.x<0.0 && ca.y<0.0) ? -1.0 : 1.0;
     return s*sqrt( min(dot(ca, ca),dot(cb, cb)) );
 }
-
+// Angle, Height
 float solid_angle_sd(vec3 p, float a, float ra) {
     vec2 c = vec2(sin(a), cos(a));
     // c is the sin/cos of the angle
@@ -175,71 +159,50 @@ float solid_angle_sd(vec3 p, float a, float ra) {
     float m = length(q - c*clamp(dot(q,c),0.0,ra) );
     return max(l,m*sign(c.y*q.x-c.x*q.y));
 }
-
+// Radius, Cut Amount (Smaller Than Radius)
 float cut_sphere_sd(vec3 p, float r, float h) {
-    // sampling independent computations (only depend on shape)
     float w = sqrt(r*r-h*h);
-
-    // sampling dependant computations
     vec2 q = vec2( length(p.xz), p.y );
     float s = max( (h-r)*q.x*q.x+w*w*(h+r-2.0*q.y), h*q.x-w*q.y );
     return (s<0.0) ? length(q)-r :
             (q.x<w) ? h - q.y     :
                     length(q-vec2(w,h));
 }
-
+// Radius, Cut Amount (Smaller Than Radius), Thickness
 float cut_hollow_sphere_sd(vec3 p, float r, float h, float t) {
-    // sampling independent computations (only depend on shape)
     float w = sqrt(r*r-h*h);
-    
-    // sampling dependant computations
     vec2 q = vec2( length(p.xz), p.y );
     return ((h*q.x<w*q.y) ? length(q-vec2(w,h)) : 
                             abs(length(q)-r) ) - t;
 }
-
+// Radius, Hole Radius, Hole Offset (From Center of Sphere)
 float death_star_sd(vec3 p2, float ra, float rb, float d) {
-    // sampling independent computations (only depend on shape)
     float a = (ra*ra - rb*rb + d*d)/(2.0*d);
     float b = sqrt(max(ra*ra-a*a,0.0));
-        
-    // sampling dependant computations
     vec2 p = vec2( p2.x, length(p2.yz) );
     if( p.x*b-p.y*a > d*max(b-p.y,0.0) )
         return length(p-vec2(a,b));
     else
         return max( (length(p          )-ra),
                 -(length(p-vec2(d,0))-rb));
-
 }
-
+// Angle, Rounding Value, Height
 float round_cone_sd(vec3 p, float r1, float r2, float h) {
-    // sampling independent computations (only depend on shape)
     float b = (r1-r2)/h;
     float a = sqrt(1.0-b*b);
-
-    // sampling dependant computations
     vec2 q = vec2( length(p.xz), p.y );
     float k = dot(q,vec2(-b,a));
     if( k<0.0 ) return length(q) - r1;
     if( k>a*h ) return length(q-vec2(0.0,h)) - r2;
     return dot(q, vec2(a,b) ) - r1;
 }
-
+// Radii in all directions
 float ellipsoid_sd(vec3 p, vec3 r) {
     float k0 = length(p/r);
     float k1 = length(p/(r*r));
     return k0*(k0-1.0)/k1;
 }
-
-float rhombus_sd(vec3 p, float la, float lb, float h, float ra) {
-    p = abs(p);
-    vec2 b = vec2(la,lb);
-    float f = clamp( (normalize(dot(b,b-2.0*p.xz)))/dot(b,b), -1.0, 1.0 );
-    vec2 q = vec2(length(p.xz-0.5*b*vec2(1.0-f,1.0+f))*sign(p.x*b.y+p.z*b.x-b.x*b.y)-ra, p.y-h);
-    return min(max(q.x,q.y),0.0) + length(max(q,0.0));
-}
-
+// Edge Length
 float octahedron_sd(vec3 p, float s) {
     p = abs(p);
     float m = p.x+p.y+p.z-s;
@@ -252,7 +215,7 @@ float octahedron_sd(vec3 p, float s) {
     float k = clamp(0.5*(q.z-q.y+s),0.0,s); 
     return length(vec3(q.x,q.y-s+k,q.z-k)); 
 }
-
+// Height
 float pyramid_sd(vec3 p, float h) {
     float m2 = h*h + 0.25;
     
@@ -272,7 +235,7 @@ float pyramid_sd(vec3 p, float h) {
         
     return sqrt( (d2+q.z*q.z)/m2 ) * sign(max(q.z,-p.y));
 }
-
+// Vertex 1, Vertex 2, Vertex 3
 float triangle_sd(vec3 p, vec3 a, vec3 b, vec3 c) {
     vec3 ba = b - a; vec3 pa = p - a;
     vec3 cb = c - b; vec3 pb = p - b;
@@ -296,134 +259,44 @@ float triangle_sd(vec3 p, vec3 a, vec3 b, vec3 c) {
         dot(nor,pa)*dot(nor,pa)/dot(nor, nor) );
 }
 
+vec4 mandelbulb_color_sd(in vec3 p) {
+    vec3 w = p;
+    float m = dot(w,w);
 
-
-vec4 get_sd(vec3 pos, mat4 obj, int index) {
-    float dist = 0;
-    int obj_type = int(obj[0][0]);
-    mat4 trans_data = transformations[index];
-    mat4 rotation = rotate_mat(trans_data[1].xyz);
-    vec3 p = (rotation * vec4(pos - transformations[index][0].xyz, 1.0)).xyz;
-    if (obj_type == 1) { // sphere
-        dist = sphere_sd(p, obj[0][1]);
-    } else if (obj_type == 2) { // plane
-        dist = plane_sd(p, obj[2].xyz, obj[0][1]);
-    } else if (obj_type == 3) { // box
-        dist = box_sd(p, obj[2].xyz, obj[0][1]);
-    } else if (obj_type == 4) { // box frame
-        dist = boxframe_sd(p, obj[2].xyz, obj[0][1]);
-    } else if (obj_type == 5) { // torus
-        dist = torus_sd(p, obj[0][1], obj[0][2]);
-    } else if (obj_type == 6) { // horseshoe
-        dist = capped_torus_sd(p, obj[1][2], obj[1][3], obj[1][0], obj[1][1]);
-    } else if (obj_type == 7) { // link
-        dist = link_sd(p, obj[1][0], obj[1][1], obj[1][2]);
-    } else if (obj_type == 8) { // cone
-        dist = cone_sd(p, obj[0][1], obj[0][2]);
-    } else if (obj_type == 9) { // hex prism
-        dist = hex_prism_sd(p, obj[0][1], obj[0][2]);
-    } else if (obj_type == 10) { // tri prism
-        dist = tri_prism_sd(p, obj[0][1], obj[0][2]);
-    } else if (obj_type == 11) { // capsule
-        dist = capsule_sd(p, obj[0][1], obj[0][2]);
-    } else if (obj_type == 12) { // capped cylinder
-        dist = capped_cylinder_sd(p, obj[0][1], obj[0][2]);
-    } else if (obj_type == 13) { // rounded cylinder
-        dist = round_cylinder_sd(p, obj[1][0], obj[1][1], obj[1][2]);
-    } else if (obj_type == 14) { // capped cone
-        dist = capped_cone_sd(p, obj[1][0], obj[1][1], obj[1][2]);
-    } else if (obj_type == 15) { // solid angle
-        dist = solid_angle_sd(p, obj[0][1], obj[0][2]);
-    } else if (obj_type == 16) { // cut sphere
-        dist = cut_sphere_sd(p, obj[0][1], obj[0][2]);
-    } else if (obj_type == 17) { // cut hollow sphere
-        dist = cut_hollow_sphere_sd(p, obj[1][0], obj[1][1], obj[1][2]);
-    } else if (obj_type == 18) { // death star
-        dist = death_star_sd(p, obj[1][0], obj[1][1], obj[1][2]);
-    } else if (obj_type == 19) { // round cone
-        dist = round_cone_sd(p, obj[1][0], obj[1][1], obj[1][2]);
-    } else if (obj_type == 20) { // ellipsoid
-        dist = ellipsoid_sd(p, obj[1].xyz);
-    } else if (obj_type == 21) { // rhombus
-        dist = rhombus_sd(p, obj[1][0], obj[1][1], obj[1][2], obj[1][3]);
-    } else if (obj_type == 22) { // octahedron
-        dist = octahedron_sd(p, obj[0][1]);
-    } else if (obj_type == 23) { // pyramid
-        dist = pyramid_sd(p, obj[0][1]);
-    } else if (obj_type == 24) { // triangle
-        dist = triangle_sd(p, obj[1].xyz, obj[2].xyz, vec3(obj[1][3], obj[2][3], obj[3][3]));
+    vec4 trap = vec4(abs(w),m);
+	float dz = 1.0;
+    
+	for( int i=0; i<4; i++ ) {
+        dz = 8.0*pow(m,3.5)*dz + 1.0;
+        float r = length(w);
+        float b = 8.0*acos( w.y/r) + time * 5;
+        float a = 8.0*atan( w.x, w.z );
+        w = p + pow(r,8.0) * vec3( sin(b)*sin(a), cos(b), sin(b)*cos(a) );
+        trap = min( trap, vec4(abs(w),m) );
+        m = dot(w,w);
+		if( m > 256.0 ) break;
     }
-    return vec4(dist, obj[3].xyz);
+    vec3 color = vec3(trap.yzw);
+    return vec4(0.25*log(m)*sqrt(m)/dz, color);
 }
 
 
-vec4 bool_op_sd(vec2 op, vec4 a, vec4 b) {
-    vec4 res = vec4(0);
-    int op_type = int(op.x);
-    float k = op.y;
-    switch (op_type) {
-        case 1:
-            res = op_union(a, b);
-            break;
-        case 2:
-            res = op_intersect(a, b);
-            break;
-        case 3: 
-            res = op_difference(a, b);
-            break;
-        case 4: 
-            res = op_smooth_union(a, b, k);
-            break;
-    }
-    // if (op_type < 2.0) {
-    //     res = op_union(a, b);
-    // }
-    // else if (op_type == 2.0) {
-    //     res = op_intersect(a, b);
-    // }
-    // else if (op_type == 3.0) {
-    //     res = op_difference(a, b);
-    // }
-    // else if (op_type == 4.0) {
-    //     res = op_smooth_union(a, b, k);
-    // }
-    return res;
+vec3 transform(vec3 p, vec3 theta, vec3 offset) {
+    mat4 rot = rotate_mat(theta);
+    return (rot * vec4(p - offset, 1.0)).xyz;
 }
+
 
 
 vec4 scene_sd(vec3 p) {
-    mat4 obj0 = objects[0];
-    vec4 pres = get_sd(p, obj0, 0);
-    vec4 res = vec4(1e20, -1, -1, -1);
+    vec4 sphere = vec4(sphere_sd(transform(p, vec3(0, 0, 0), vec3(0, 1, 6)), 0.65), 0.2, 1.0, 0.2);
+    vec4 box = vec4(boxframe_sd(transform(p, vec3(0), vec3(0 + sin(time * 2) + 0.75, 1, 6)), vec3(0.5, 0.5, 0.5), 0.05), 1.0, 0.2, 0.2);
+    vec4 plane = vec4(plane_sd(p, vec3(0, 1, 0), 0.0), 1.0, 1.0, 1.0);
 
-    int prev_bool_op = int(obj0[0][3]) - 1;
-    for (int i = 1; i < MAX_OBJECTS; i++) {
-        if (i >= int(consts.x)) break;
-        mat4 obj = objects[i];
-        float obj_type = obj[0][0];
-        if (obj_type == 0.0) {
-            res = op_union(res, pres);
-            break;
-        };
-        int bool_op_index = int(obj[0][3]) - 1;
-        vec4 d = get_sd(p, obj, i);
-
-        if (bool_op_index != prev_bool_op) {
-            res = op_union(res, pres);
-            pres = d;
-            // prev_bool_op = bool_op_index;
-            // continue;
-        }
-        else if (bool_op_index == -1) {
-            pres = bool_op_sd(vec2(1), pres, d);
-            // prev_bool_op = bool_op_index;
-            // continue;
-        } else {
-            vec2 bool_op = bool_ops[0];
-            pres = bool_op_sd(bool_op, pres, d);
-        }
-        prev_bool_op = bool_op_index;
-    }
+    vec4 res = op_smooth_union(sphere, box, 12.0);
+    // vec4 res = mix(sphere, box, sin(time) * 0.5 + 0.5);
+    res = op_union(res, plane);
+    // vec4 res = mandelbulb_color_sd(transform(p, vec3(0.3, 0.0, 1.6), vec3(0, 0.8, 6)));
     return res;
 }
 
@@ -449,7 +322,7 @@ vec4 march(vec3 origin, vec3 direction) {
 float get_soft_shadow(vec3 ro, vec3 rd, float tmin, float tmax) {
     float res = 1.0;
     float t = tmin;
-    float w = params.x;
+    float w = 4.0;
     for (int i = 0; i < 24; i++) {
         float h = scene_sd(ro + rd * t).x;
         float s = clamp(w * h / t, 0.0, 1.0);
@@ -491,18 +364,19 @@ vec3 get_normal(vec3 p) {
 vec3 get_light(vec3 p, vec3 rd, vec3 normal, vec3 color) {
     float n_lights = 0;
     vec3 total_light = vec3(0);
-    float occ = (params.z != 0.0) ? get_ambient_occlusion(p, normal) : 1.0;
-    for (int i = 0; i < MAX_LIGHTS; i++) {
-        if (lights[i].w == 0) break;
-        vec3 light_pos = lights[i].xyz;
+    float occ = get_ambient_occlusion(p, normal);
+    const int num_lights = 1;
+    vec3 lposes[num_lights] = vec3[num_lights](
+        vec3(6, 5, -6)
+    );
+    for (int i = 0; i < num_lights; i++) {
+        vec3 light_pos = lposes[i].xyz;
         vec3 l = normalize(light_pos - p);
         vec3 hal = normalize(l - rd);
 
         float dif = clamp(dot(normal, l), 0.0, 1.0);
         dif *= occ;
-        if (params.y != 0.0) {
-            dif *= get_soft_shadow(p, l, 0.02, 5.0);
-        }
+        dif *= get_soft_shadow(p, l, 0.02, 5.0);
 
         vec3 directional = vec3(0.9, 0.9, 0.8) * dif;
         vec3 ambient = vec3(0.03, 0.04, 0.1);
@@ -519,6 +393,7 @@ vec3 get_light(vec3 p, vec3 rd, vec3 normal, vec3 color) {
 }
 
 vec3 render(vec3 rd) {
+    vec3 fog_color = vec3(0.3, 0.36, 0.6);
     vec3 color = fog_color.xyz - max(rd.y, 0.0) * 0.4;
 
     vec4 res = march(camera_origin, rd);
